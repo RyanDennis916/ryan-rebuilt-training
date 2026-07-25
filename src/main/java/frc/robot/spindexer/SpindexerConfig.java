@@ -13,6 +13,7 @@ public class SpindexerConfig {
         motorConfig.CurrentLimits.StatorCurrentLimit = 80.0;
         motorConfig.MotorOutput.NeutralMode = NeutralModeValue.Coast;
         // Positive = inside
+        // Untested value
         motorConfig.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
     }
 }
