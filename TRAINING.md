@@ -16,6 +16,7 @@ WPILib is the software suite containing all necessary packages and applications 
     - [View](#view)
     - [Extension Installation](#extension-installation)
         - [Disabling Unnecessary Extensions](#disabling-unnecessary-extensions)
+        - [Live Share](#live-share)
 - [Optional Java Recap](#optional-java-recap)
 - [Programming the Codebase](#programming-the-codebase)
     - [Expectations](#expectations)
@@ -149,6 +150,16 @@ Disable the following extensions:
 - `Test Runner for Java`
 - `Project Manager for Java`
 - Any other extensions with a high startup time that you have determined to be not useful (ask mentors)
+
+#### Live Share
+To allow mentors to view your coding in real time, install the `Live Share` extension (by the verified `Microsoft`).
+
+On the left bar, click on the live share icon and share a `Read/Write` link with the mentor.
+
+Mentors:
+- When opening a link, it will replace the last used VS Code window. So if you have existing windows to keep, create a new blank window with `Ctrl`/`Command`+`Shift`+`N`.
+- In the shared workspace, click on the Live Share icon on the left and then click on the trainee's name to follower their pointer.
+- Works best with 1-2 trainees. When mentoring, use split screen, second monitor, or skillful window switching to monitor both trainees.
 
 ## Optional Java Recap
 <details><summary>Optional review</summary>
