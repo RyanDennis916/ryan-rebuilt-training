@@ -5,6 +5,8 @@ import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 
 public class SpindexerConfig {
+    public static final double SPEED = 0.5;
+
     public static final TalonFXConfiguration motorConfig = new TalonFXConfiguration();
 
     static {
