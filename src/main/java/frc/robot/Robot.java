@@ -10,11 +10,13 @@ import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.StartEndCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 
+import frc.intake.IntakeSubsystem;
 import frc.robot.spindexer.SpindexerSubsystem;
 
 public class Robot extends TimedRobot {
 
     private final SpindexerSubsystem spindexer = new SpindexerSubsystem();
+    private final IntakeSubsystem intake = new IntakeSubsystem();
     private final CommandXboxController controller = new CommandXboxController(0);
     Runnable startSpindexer = spindexer::start;
 
@@ -23,6 +25,7 @@ public class Robot extends TimedRobot {
         controller
                 .leftBumper()
                 .whileTrue(new StartEndCommand(spindexer::start, spindexer::stop, spindexer));
+        spindexer.setDefaultCommand(spindexer.run(spindexer::stop));
     }
 
     @Override
