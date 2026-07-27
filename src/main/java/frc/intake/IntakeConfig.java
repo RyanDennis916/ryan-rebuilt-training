@@ -1,5 +1,7 @@
 package frc.intake;
 
+import static edu.wpi.first.units.Units.Rotations;
+
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
@@ -25,9 +27,11 @@ public class IntakeConfig {
         rollerMotorConfig.MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive;
 
         deployMotorConfig.SoftwareLimitSwitch.ForwardSoftLimitEnable = true;
-        deployMotorConfig.SoftwareLimitSwitch.ForwardSoftLimitThreshold = IntakeConst.MAX_ANGLE;
+        deployMotorConfig.SoftwareLimitSwitch.ForwardSoftLimitThreshold =
+                IntakeConst.MAX_ANGLE.in(Rotations);
 
         deployMotorConfig.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
-        deployMotorConfig.SoftwareLimitSwitch.ReverseSoftLimitThreshold = IntakeConst.MIN_ANGLE;
+        deployMotorConfig.SoftwareLimitSwitch.ReverseSoftLimitThreshold =
+                IntakeConst.MIN_ANGLE.in(Rotations);
     }
 }
