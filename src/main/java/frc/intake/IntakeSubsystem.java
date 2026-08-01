@@ -7,6 +7,7 @@ import com.ctre.phoenix6.hardware.TalonFX;
 
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.units.measure.Angle;
+import edu.wpi.first.util.sendable.SendableBuilder;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 public class IntakeSubsystem extends SubsystemBase {
@@ -61,5 +62,14 @@ public class IntakeSubsystem extends SubsystemBase {
     public void stow() {
         rollersOff();
         moveUp();
+    }
+
+    public Angle getIntakeAngle() {
+        return deployMotor.getPosition().getValue();
+    }
+
+    @Override
+    public void initSendable(SendableBuilder builder) {
+        builder.addDoubleProperty("angle (deg)", this::getIntakeAngle, this::moveAngle);
     }
 }

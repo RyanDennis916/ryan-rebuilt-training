@@ -6,6 +6,8 @@ Trainees, please go to [`TRAINING.md`](TRAINING.md)
 
 ## Controls
 
+DPAD Up - Stow, DPAD Down - Deploy
+
 ### Xbox Controller Bindings
 (Add documented controls here)
 

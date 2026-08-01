@@ -21,11 +21,24 @@ public class Robot extends TimedRobot {
     Runnable startSpindexer = spindexer::start;
 
     public Robot() {
+        initDashboard();
+        initBindings();
+    }
+
+    public SmartDashboard initDashboard() {
         SmartDashboard.putData("Spindexer", spindexer);
+        SmartDashboard.putData("Intake", intake);
+    }
+
+    public void initBindings() {
         controller
                 .leftBumper()
                 .whileTrue(new StartEndCommand(spindexer::start, spindexer::stop, spindexer));
+
         spindexer.setDefaultCommand(spindexer.run(spindexer::stop));
+
+        controller.povDown().onTrue(intake.runOnce(intake::deploy));
+        controller.povUp().onTrue(intake.runOnce(intake::stow));
     }
 
     @Override
