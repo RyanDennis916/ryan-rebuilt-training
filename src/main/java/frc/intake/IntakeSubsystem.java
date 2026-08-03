@@ -15,6 +15,8 @@ public class IntakeSubsystem extends SubsystemBase {
     private final TalonFX deployMotor = new TalonFX(IntakeConst.DEPLOY_MOTOR_ID);
     private final TalonFX rollerMotor = new TalonFX(IntakeConst.ROLLER_MOTOR_ID);
 
+    private Angle targetPitch;
+
     public IntakeSubsystem() {
         deployMotor.getConfigurator().apply(IntakeConfig.deployMotorConfig);
         rollerMotor.getConfigurator().apply(IntakeConfig.rollerMotorConfig);
@@ -22,13 +24,13 @@ public class IntakeSubsystem extends SubsystemBase {
     }
 
     public void moveAngle(Angle angle) {
-        Angle targetAngle =
+        targetPitch =
                 Rotations.of(
                         MathUtil.clamp(
                                 angle.in(Rotations),
                                 IntakeConst.MIN_ANGLE.in(Rotations),
                                 IntakeConst.MAX_ANGLE.in(Rotations)));
-        deployMotor.setControl(new MotionMagicVoltage(targetAngle));
+        deployMotor.setControl(new MotionMagicVoltage(targetPitch));
     }
 
     public void moveRollerSpeed(double speed) {
@@ -75,5 +77,9 @@ public class IntakeSubsystem extends SubsystemBase {
                 "angle (deg)",
                 () -> getIntakeAngle().in(Degrees),
                 (angle) -> moveAngle(Degrees.of(angle)));
+        builder.addDoubleProperty(
+                "target pitch (deg)",
+                () -> getIntakeAngle().in(Degrees),
+                (targetPitch) -> moveAngle(Degrees.of(targetPitch)));
     }
 }

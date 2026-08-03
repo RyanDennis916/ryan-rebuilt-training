@@ -4,6 +4,7 @@
 
 package frc.robot;
 
+import edu.wpi.first.util.sendable.Sendable;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
@@ -11,12 +12,16 @@ import edu.wpi.first.wpilibj2.command.StartEndCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 
 import frc.intake.IntakeSubsystem;
+import frc.launcher.feeder.FeederSubsystem;
+import frc.launcher.hood.HoodSubsystem;
 import frc.robot.spindexer.SpindexerSubsystem;
 
 public class Robot extends TimedRobot {
 
     private final SpindexerSubsystem spindexer = new SpindexerSubsystem();
     private final IntakeSubsystem intake = new IntakeSubsystem();
+    private final FeederSubsystem feeder = new FeederSubsystem();
+    private final HoodSubsystem hood = new HoodSubsystem();
     private final CommandXboxController controller = new CommandXboxController(0);
     Runnable startSpindexer = spindexer::start;
 
@@ -28,6 +33,8 @@ public class Robot extends TimedRobot {
     public void initDashboard() {
         SmartDashboard.putData("Spindexer", spindexer);
         SmartDashboard.putData("Intake", intake);
+        SmartDashboard.putData("Feeder", (Sendable) feeder);
+        SmartDashboard.putData("Hood", hood);
     }
 
     public void initBindings() {
