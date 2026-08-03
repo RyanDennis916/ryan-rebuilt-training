@@ -25,7 +25,7 @@ public class Robot extends TimedRobot {
         initBindings();
     }
 
-    public SmartDashboard initDashboard() {
+    public void initDashboard() {
         SmartDashboard.putData("Spindexer", spindexer);
         SmartDashboard.putData("Intake", intake);
     }

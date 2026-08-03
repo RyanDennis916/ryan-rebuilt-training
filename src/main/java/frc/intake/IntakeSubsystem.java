@@ -1,5 +1,6 @@
 package frc.intake;
 
+import static edu.wpi.first.units.Units.Degrees;
 import static edu.wpi.first.units.Units.Rotations;
 
 import com.ctre.phoenix6.controls.MotionMagicVoltage;
@@ -70,6 +71,9 @@ public class IntakeSubsystem extends SubsystemBase {
 
     @Override
     public void initSendable(SendableBuilder builder) {
-        builder.addDoubleProperty("angle (deg)", this::getIntakeAngle, this::moveAngle);
+        builder.addDoubleProperty(
+                "angle (deg)",
+                () -> getIntakeAngle().in(Degrees),
+                (angle) -> moveAngle(Degrees.of(angle)));
     }
 }
