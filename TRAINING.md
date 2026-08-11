@@ -73,6 +73,9 @@ WPILib is the software suite containing all necessary packages and applications 
             - [Leader and Follower Motors](#leader-and-follower-motors)
             - [Configuring Shooter Motors](#configuring-shooter-motors)
             - [Shooter Movement Methods](#shooter-movement-methods)
+        - [Turret Subsystem](#turret-subsystem)
+            - [Motors vs Encoders](#motors-vs-encoders)
+            - [Turret Movement Methods](#turret-movement-methods)
 - [Temporary End](#temporary-end)
 
 ## Attribution
@@ -1226,6 +1229,146 @@ Also add the `enabled` property to your `initSendable()`. You can do this with t
                     if (enable) enabled = true;
                     else enabled = false;
                 });
+```
+</details>
+
+#### Turret Subsystem
+
+##### Motors vs Encoders
+The turret subsystem has both a motor and an **encoder**. Encoders are sensors we use to track motor position, separate from the motor itself.
+
+Initialize the motor and encoder to start. Encoders are initialized similar to motors, but they are of type `CANCoder` instead of `TalonFX`. Both will need placeholder motor IDs in `TurretConst` and the same `CAN_BUS` as the hood subsystem passed into their constructors.
+
+Configure the turret motor with a stator current limit of `30` and make it brake when output is neutral.
+
+You will need to make a configuration for the encoder as well (object type `CANcoderConfiguration`).
+
+In a separate `static` block, set two properties of your encoder configuration:
+`MagnetSensor.MagnetOffset` to the value `-0.444`. This represents the angular displacement between the encoder's true (mechanical) zero position and the one reported by the encoder itself.
+`MagnetSensor.SensorDirection` to an enum value of `SensorDirectionValue` (similar to the motor's `MotorOutput.Inverted` field, we will determine this in testing)
+
+Also enable and set forward/reverse limit switches for the turret motor.
+
+Be sure to set a stow yaw for our turret (upon stow/startup) as a constant.
+
+We will also need to store our *encoder to mechanism ratio* as a constant. This value is the number of encoder rotations recorded for every mechanism rotation, and will be useful for conversions. Set it to `8.5`.
+
+Because we're using an encoder, there are some additional steps we'll take when configuring the motor. `TalonFXConfiguration` objects also have a `Feedback` field where we can set and configure the motor's *feedback source*. In this case, our encoder readings are the "feedback" we give to the motor; the motor receives its exact position and can adjust accordingly.
+
+First, we'll set the motor config's `Feedback.FeedbackSensorSource` field to a value of the `FeedbackSensorSourceValue` enum, `RemoteCANcoder`.
+
+Now set the `Feedback.FeedbackRemoteSensorID` property to the encoder ID you declared earlier.
+
+Lastly, set the `Feedback.SensorToMechanismRatio` property to your encoder to mechanism ratio value.
+
+Apply both configurations in the `TurretSubsystem` constructor.
+
+Similar to the hood, the turret should also have a target field for setpoints. Create an `Angle` called `targetYaw` that will be updated when we change the turret position.
+
+The turret subsystem should also have an `enabled` field for testing purposes.
+
+##### Turret Movement Methods
+To start, write a method that returns the current turret yaw in rotations. Note that the `getPosition()` method will read the CANcoder instead of the motor, and already accounts for the encoder to mechanism ratio (no conversion needed).
+
+We will write two methods to move the turret, one that sets it to the exact inputted position and one that calculates the best possible position to move to that still faces the correct direction. Let's start with the former.
+
+Our first method will be called `moveRawYaw()`. Make sure to check that the turret is enabled before trying to change its position.
+
+In the method body, update `targetYaw` to the new setpoint. Remember to clamp the new value between the turret subsystem's `MIN_ANGLE` and `MAX_ANGLE`.
+
+After you update `targetYaw`, use a new `MotionMagicVoltage` request to move the turret motor. 
+
+Use this `moveRawYaw()` method in a new method to stow the turret.
+
+Our second movement method, which calculates the best possible turret position, will be named `moveYaw()`. 
+
+Because the turret can make more than one full rotation within its mechanical limitations, there will sometimes be two yaw values the turret could move to in order to point the same direction. These yaw values are considered **coterminal**, because they are different angles that point the same way. One of these positions will be closer for the turret to move to than the other. Now, you'll write a method that calculates the distance the turret would need to move to each point and chooses the shorter distance.
+
+To start, create two `double` values to store the turret's current yaw and the desired (input) yaw.
+
+To make our calculations easier, we are going to treat the position we want to end up (our *desired* yaw) as if it's at `0.0` rotations. In other words, we are changing our *frame of reference* and writing all other yaw values in terms of how far they are from our desired yaw. 
+
+Let's start by creating a new variable to store the turret's current yaw relative to our desired yaw, called something like `relCurrentYaw`. To do this, simply subtract the desired value from the current value.
+
+Create two more variables to store the turret's minimum and maximum angles, relative to our desired yaw.
+
+Now we can look for the best position to set the turret in order to point in the desired direction. The yaw value we're looking for will have to be:
+The closest value to our current yaw that is also **coterminal** to our desired yaw
+Within the mechanical limits (max and min angles) of the turret
+
+Let's start by finding the closest coterminal yaw value to our current yaw. Because we're considering our desired yaw to be `0.0` right now, finding the potential coterminal values are easy; they will all fall exactly one rotation away from each other, so our possible coterminal yaws are simply `0`, `1`, `2`, `-1`, `-2`, etc.
+
+This means that finding the closest coterminal angle to our (relative) current yaw is just a matter of rounding that value to the nearest integer.
+
+Now that we've found the angle we want, let's make sure it's within the turret's mechanical bounds.
+
+Determine the smallest and largest coterminal angles that the turret could move to within its minimum/maximum angles. Use the `Math.ceil()` and `Math.floor()` methods.
+
+Clamp our closest coterminal angle between these new limitations to make sure we don't break the turret.
+
+We have to convert the yaw value we found back to the turret motor's frame of reference before we move anything. Add our desired yaw value back to this angle to do so.
+
+Lastly, use your `moveRawYaw()` method to point the turret in our desired direction!
+
+We will also need a `calibrateYaw()` method that correctly calibrates the encoder position based on where we think the turret is. 
+
+We need this method because the encoder has many rotations per mechanism rotation, but it only tracks the position within one rotation on boot, so it could be off by a whole number of rotations on startup. Only the phase of the encoder is always correct.
+
+To calibrate the encoder, our method will use a "guess" of the current yaw (passed into the method) and the encoder's current position (off by whole rotations) to determine what the encoder position should be set to.
+
+The method finds the coterminal (off by whole rotations, so some phase) encoder position the closest to the guess, and then sets the encoder position to that.
+
+First, make sure our inputted guess yaw is actually within the range of valid turret yaws.
+
+Next, you'll need two `double` values; the encoder's current position and our guessed position (which should be converted into encoder rotations).
+
+To figure out how far off our encoder measurement is, we want to take the difference between its current position and our guess position. However, since our guess rotation is not exact, we want to *round* this result to the nearest rotation. This value gives us the offset between where the encoder thinks the turret is and where it actually is.
+
+Make sure to clamp this value between the possible range of offsets so we aren't setting the encoder to an invalid position!
+
+Remember to add the measured encoder position back to your clamped offset to find the coterminal encoder position closest to your guess yaw.
+
+Finally, use the `setPosition()` method to update the encoder to your new calibrated position.
+
+Another useful piece of information here would be the turret's yaw error, or the difference between the desired and current yaw. Create a method called `getYawError()` that retrieves this difference.
+
+A little bit of error is expected and okay, but error past a certain set tolerance becomes an issue.
+
+Let's start with a yaw error tolerance of `3` degrees. Save this value in your config file.
+
+In `TurretSubsystem.java`, create a method that compares the current yaw error with this value, and returns whether or not it is still within tolerance.
+
+Now we can start adding turret information to the dashboard. In a new `initSendable()` method, initialize the following properties:
+Turret status (enabled/disabled)
+Current yaw (all angles should be in degrees)
+Target yaw 
+Yaw error
+Whether or not the error is within tolerance
+
+<details><summary>Your final method should look like this:</summary>
+
+```java
+@Override
+    public void initSendable(SendableBuilder builder) {
+        builder.addBooleanProperty(
+                "enabled",
+                () -> enabled,
+                (enable) -> {
+                    if (enable) enabled = true;
+                    else enabled = false;
+                });
+        // Use this dashboard property setter to calibrate yaw if necessary after startup
+        builder.addDoubleProperty(
+                "YAW (deg)",
+                () -> getYaw().in(Degrees),
+                (guessYaw) -> calibrateYaw(Degrees.of(guessYaw)));
+        builder.addDoubleProperty(
+                "target yaw, raw (deg)",
+                () -> targetYaw.in(Degrees),
+                (yaw) -> moveRawYaw(Degrees.of(yaw)));
+        builder.addDoubleProperty("yaw error (deg)", () -> getYawError().in(Degrees), null);
+        builder.addBooleanProperty("within tolerance", this::withinTolerance, null);
+    }
 ```
 </details>
 
