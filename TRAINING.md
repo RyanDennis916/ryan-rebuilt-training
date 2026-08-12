@@ -76,6 +76,11 @@ WPILib is the software suite containing all necessary packages and applications 
         - [Turret Subsystem](#turret-subsystem)
             - [Motors vs Encoders](#motors-vs-encoders)
             - [Turret Movement Methods](#turret-movement-methods)
+        - [Automatic Targeting](#automatic-targeting)
+            - [Aiming The Turret](#aiming-the-turret)
+            - [Determining Launch Speed](#determining-launch-speed)
+            - [Putting It Together](#putting-it-together)
+
 - [Temporary End](#temporary-end)
 
 ## Attribution
@@ -1371,6 +1376,193 @@ Whether or not the error is within tolerance
     }
 ```
 </details>
+
+### Automatic Targeting
+
+#### Aiming The Turret
+
+The point of having a turret subsystem is to aim at the hub and score regardless of the robot's present rotation. While we could have the driver aim it manually, it would be a lot slower and less accurate than performing the calculations in code. We want to write a method in `turretSubsystem.java` that reads the current robot position and determines which way the turret needs to aim.
+
+This might seem like a complicated task, but we'll break down the calculations and make it easier to follow.
+
+> Note: In the original rebuilt robot's codebase, Anthony implemented a more complicated "shoot on the move" algorithm that accounted for robot velocity as well as position. These calculations are too complicated to teach in this training, so our goal will be making the robot aim accurately towards the hub at a standstill.
+
+Let's work with a simpler problem to start. Assume the robot's rotation is always 0 (facing away from the driverstation) as we drive it around the field. All we have to do is determine the angle $\theta$ (pronounced *theta*) between the turret's current direction and the direction we want it to face (towards the hub), which will be the change in yaw for the turret.
+
+Since we have both the robot and hub positions (as FCS coordinates), the calculations come down to basic trigonometry. We can draw a straight line from the robot's center to the hub's center and use this as a hypotenuse for a right triangle, where the legs are the change in x and y values respectively.
+
+The $\theta$ will be the angle we want to find, the difference between the robot's current orientation and the way it must face to aim at the hub. 
+
+Since we have the x and y coordinates of both the robot and the hub (FCS), we can solve for the side lengths of the right triangle's legs. 
+
+Now we can use a trigonometric function known as *tan*, which relates the value of an angle $\theta$ to the ratio of its opposite and adjacent sides in a right triangle. It looks like this:
+
+$$
+\tan\theta = \frac{opposite}{adjacent}
+$$
+
+Since we know the values of both the opposite and adjacent sides from the angle we want to find, we can substitute those in and solve the expression.
+
+$$
+\tan\theta = \frac{x}{y}
+$$
+
+In order to solve for $\theta$, we have to get rid of the tan somehow. For this, we can use an inverse trigonometric function, which essentially "undoes" a normal trigonometric function when applied. The inverse function of tan is known as arctan.
+
+Applying it here looks like this:
+
+$$
+\arctan(\tan\theta) = \arctan(\frac{x}{y}) \\
+\theta = \arctan(\frac{x}{y})
+$$
+
+Now we have an expression for $\theta$ with all known values, meaning we can solve for the desired turret yaw at any point.
+
+But what about when the robot's rotation isn't 0?
+
+In this case, we have to add an offset to our calculated target yaw to "cancel out" the robot's rotation. This is a much simpler calculation to make; for example, if the robot is rotated 90 degrees to the right from 0, we can just rotate the turret 90 degrees to the left to offset it. 
+
+To generalize to any yaw, we can subtract off the current turret rotation, which gives us the extra amount of rotation needed from the current position.
+
+Of course, shooting fuel into the hub requires more than just aiming in the right direction. There are two other factors we have control over; the pitch of the fuel (what angle the hood is at) and the launch speed (how fast we run the shooter motor). To make calculations easier, we'll use a fixed value for pitch (ex. 60 degrees) and solve only for launch speed.
+
+#### Projectile Motion Mini-Lesson
+
+<sub><sup>Mentors, explain projectile motion pls </sup></sub>
+
+#### Determining Launch Speed
+
+In order to simplify our calculations, we will assume the effects of air resistance on the fuel are negligible.
+
+To solve for launch speed, we'll be looking to relate what we know (vertical and horizontal distances from the launcher to the target) with what we're trying to find (launch speed). The easiest way we can do this is by writing an equation for this relationship, so let's go through how we'll set up the calculations!
+
+It will be much easier to solve for launch speed if we break it up into its horizontal and vertical components, v<sub>x</sub> and v<sub>y</sub>. Think of these components as the legs of a right triangle, with the combined velocity as the hypotenuse; using $\theta\ as our initial launch angle, we can write v<sub>x</sub> and v<sub>y</sub> as:
+$$
+v_x = v\cos\theta \\
+v_y = v\sin\theta
+$$
+
+Now that we've separated v into components, we can write separate motion equations for the horizontal and vertical movement of the fuel as it is launched towards the hub. For these equations, let x and y represent the horizontal and vertical displacement of the fuel in its path.
+
+Since we're ignoring air resistance, we can assume the fuel's horizontal velocity will remain constant. 
+
+We want to write an equation relating the fuel's horizontal velocity to something we know, like the distance it travels. Remember that:
+$$
+velocity = \frac{distance}{time}
+$$
+
+In our case, we can rewrite this definition as
+$$
+v_x = \frac{x}{t}
+$$
+Where t represents the time the fuel has been in the air.
+
+Our equation for vertical motion will be more complicated, due to gravity exerting a constant acceleration downwards on the fuel. This means our vertical velocity component, v<sub>y</sub>, will be decreasing as the fuel travels through the air.
+
+We'll start with a well-known kinematics equation, something you might see in Honors or AP Physics. These equations are meant to model the motion of an object in terms of variables like its initial position, velocity, and acceleration. The equation we'll use looks like this:
+$$
+displacement = v_0t + \frac{1}{2}at^2
+$$
+In this equation:
+displacement is how far the object has traveled from its starting point
+v<sub>0</sub> is the *initial velocity* (launch speed) of the object
+a is a constant *acceleration* being applied to the object
+t is the time elapsed since our object's release
+We want to rewrite this equation to fit our specific scenario. Our displacement will be the fuel's vertical displacement (y), our initial velocity will be the launch speed's vertical component (v<sub>y</sub>), and our acceleration will be the acceleration applied by gravity (g).
+
+Rewriting the equation:
+$$
+y = v_yt + \frac{1}{2}gt^2
+$$
+
+Now we have two equations, each modeling the fuel's horizontal and vertical motion:
+$$
+v_x = \frac{x}{t}
+y = v_yt + \frac{1}{2}gt^2
+$$
+
+You'll notice that, in both these equations, we have *two* unknown variables. This means we can't solve for launch speed using only one; we'll have to solve them as a system of equations.
+
+If you're confident with solving systems, we highly recommend doing the calculations yourself! If you'd like to see a sample solution, it's written below:  
+
+<details><summary> Sample Solution </summary>. 
+
+In order to make an equation with only one unknown variable, we'll solve one of the two equations for t. Then, we can substitute that expression for t into the other equation and simplify.
+
+Let's solve the horizontal motion equation for t:
+$$
+v_x = \frac{x}{t} \\
+(\text{multiply both sides by t})\implies tv_x = x \\
+(\text{divide both sides by }v_x)\implies t = \frac{x}{v_x}
+$$
+
+Now we can substitute this expression for t into our vertical motion equation:
+$$
+(\text{original equation})\implies y = v_yt + \frac{1}{2}gt^2 \\
+(\text{substitute in }t = \frac{x}{v_x})\implies y = v_y(\frac{x}{v_x}) + \frac{1}{2}g(\frac{x}{v_x})^2
+$$
+
+You'll notice that we still have two unknown variables, v<sub>x</sub> and v<sub>y</sub>. Luckily, both can be written in terms of v instead:
+
+$$
+v_x = v\cos\theta \\
+v_y = v\sin\theta
+$$
+
+Substituting these into our vertical motion equation:
+$$
+y = v_y(\frac{x}{v_x}) + \frac{1}{2}g(\frac{x}{v_x})^2 \\
+(\text{substitute in }v_x \text{ and }v_y)\implies y = (v\sin\theta)(\frac{x}{v\cos\theta}) + \frac{1}{2}g(\frac{x}{v\cos\theta})^2
+$$
+
+All we have to do now is simplify and solve for v!
+$$
+y = (v\sin\theta)(\frac{x}{v\cos\theta}) + \frac{1}{2}g(\frac{x}{v\cos\theta})^2 \\
+(\text{distribute})\implies y = \frac{x v\sin\theta}{v\cos\theta} + \frac{1}{2}g(\frac{x^2}{v^2\cos^2\theta}) \\
+(\text{distribute again})\implies y = \frac{x v\sin\theta}{v\cos\theta} + \frac{g x^2}{2v^2\cos^2\theta} \\
+(\text{cancel } v)\implies y = \frac{x \sin\theta}{\cos\theta} + \frac{g x^2}{2v^2\cos^2\theta} \\
+(\text{apply tan}\theta \text{ identity})\implies y = x\tan\theta + \frac{g x^2}{2v^2\cos^2\theta} \\
+(\text{isolate v on one side})\implies \frac{g x^2}{2v^2\cos^2\theta} = x\tan\theta - y \\
+(\text{solve for v})\implies gx^2 = 2v^2\cos^2\theta(x\tan\theta - y) \\
+\frac{gx^2}{x\tan\theta - y} = 2v^2\cos^2\theta \\
+\frac{1}{2\cos^2\theta}(\frac{gx^2}{x\tan\theta - y}) = v^2 \\
+\sqrt{\frac{gx^2}{(2\cos^2\theta)x\tan\theta - y}} = v \\
+\frac{x}{\cos\theta}\sqrt{\frac{g}{2(x\tan\theta - y)}} = v \\
+$$ 
+\
+**Solution**:
+$$
+v = \frac{x}{\cos\theta}\sqrt{\frac{g}{2(x\tan\theta - y)}}
+$$
+</details>. 
+
+
+Now that you've seen the calculations for both turret position and launch speed based on hub position, try creating methods to implement them!
+
+Here are some guidelines:
+- The initial pitch of the fuel (the hood angle) should stay at a constant value no matter where you're shooting from
+- Your methods should use both robot and hub positions to calculate yaw/launch speed
+- Detailed field dimensions (like hub position\height) can be found [here](https://firstfrc.blob.core.windows.net/frc2026/FieldAssets/2026-field-dimension-dwgs.pdf)
+
+#### Putting it Together
+
+Next, we'll implement these methods in `Robot.java` to make the robot automatically aim and shoot when in teleoperated mode.
+
+Similar to our bindings, we'll want to implement automatic targeting as a command that can be scheduled (in this case repeatedly, all the time). To put together our different aiming methods in the turret and shooter, we'll make another method in `Robot.java` to combine them and return a single command.
+
+Create a method in `Robot.java` that returns a `Command`. 
+
+We already know how to write a lambda expression that returns a command to call a single method. But what if we want to call multiple at the same time?
+
+`Commands.parallel()` is a method that takes in multiple commands and returns a new command to run all of them at the same time. Since we want the turret yaw and launch speed to adjust as soon as possible, this is ideal for automatic targeting; we can call both methods repeatedly, without having one wait for the other.
+
+We also want to use the `CommandsUtil.asDefault()` method on the commands we pass into `Commands.parallel()`. `asDefault()` makes it so the command passed in won't be run if its subsystems (requirements) are busy with something else. This allows us to implement things that might interrupt the aiming routine, like fixed shooting (launcher doesn't adjust based on robot position). 
+
+Using both these methods, complete your method to return automatic targeting as one command.
+
+Now that we can get this command more conveniently, let's add it to the robot. We won't be adding this to `initBindings()` (it wouldn't be convenient for the driver to be constantly spamming one button). Instead, it will go into the `robotPeriodic()` method where you added the line to run scheduled commands `CommandScheduler.getInstance().run()`.
+
+We want to schedule our automatic aiming command so that it is run every time `robotPeriodic()` is called. Do this using the line `CommandScheduler.getInstance().schedule()` to schedule your targeting command before running all scheduled commands. 
 
 ## Temporary End
 The rest of training is being actively written.
