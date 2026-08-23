@@ -1351,7 +1351,7 @@ Now we can start adding turret information to the dashboard. In a new `initSenda
 <details><summary>Your final method should look like this:</summary>
 
 ```java
-@Override
+    @Override
     public void initSendable(SendableBuilder builder) {
         builder.addBooleanProperty(
                 "enabled",
@@ -1376,6 +1376,29 @@ Now we can start adding turret information to the dashboard. In a new `initSenda
 </details>
 
 ### Automatic Targeting
+
+#### WPILib Coordinate Systems
+
+Before we get into targeting, let's talk briefly about the different coordinate systems we'll use. Take a moment to read through and view the diagams at the [WPILib Coordinate System](https://docs.wpilib.org/en/stable/docs/software/basic-programming/coordinate-system.html) page.
+
+WPILib (Robot) Coordinate System:
+- Origin is at the robot's center, flat on the floor
+- +X axis points ahead of the robot (-X points behind)
+- +Y axis points to the robot's left (-Y points right)
+- +Z points up (-Z points down)
+
+Field Coordinate System:
+- Origin is always at blue alliance wall's rightmost corner
+- +X axis points away from the blue alliance wall
+- +Y axis points along the blue alliance wall
+- Note: Alternatively, you could change the definition of your origin based on your alliance. We generally keep the origin at the blue alliance wall because it's easier to understand.
+
+Important takeaways:
+- The positive direction for rotations is **counterclockwise** (written as CCW), and 0 degrees is aligned with the x-axis
+- The robot's coordinate system is *not* the same as the joystick's coordinate system
+- There are multiple ways to define your origin in the field coordinate system
+
+We will revist the joystick/controller coordinate system later.
 
 #### Aiming The Turret
 
@@ -1470,13 +1493,13 @@ We want to rewrite this equation to fit our specific scenario. Our displacement 
 
 Rewriting the equation:
 $$
-h = v_zt + \frac{1}{2}gt^2
+h = v_zt - \frac{1}{2}gt^2
 $$
 
 Now we have two equations, each modeling the fuel's horizontal and vertical motion:
 $$
 v_x = \frac{d}{t} \\
-h = v_zt + \frac{1}{2}gt^2
+h = v_zt - \frac{1}{2}gt^2
 $$
 
 You'll notice that, in both these equations, we have *two* unknown variables. This means we can't solve for launch speed using only one; we'll have to solve them as a system of equations.
@@ -1496,8 +1519,8 @@ $$
 
 Now we can substitute this expression for t into our vertical motion equation:
 $$
-(\text{original equation})\implies h = v_zt + \frac{1}{2}gt^2 \\
-(\text{substitute in }t = \frac{d}{v_x})\implies h = v_z(\frac{d}{v_x}) + \frac{1}{2}g(\frac{d}{v_x})^2
+(\text{original equation})\implies h = v_zt - \frac{1}{2}gt^2 \\
+(\text{substitute in }t = \frac{d}{v_x})\implies h = v_z(\frac{d}{v_x}) - \frac{1}{2}g(\frac{d}{v_x})^2
 $$
 
 You'll notice that we still have two unknown variables, v<sub>x</sub> and v<sub>z</sub>. Luckily, both can be written in terms of v instead:
@@ -1509,17 +1532,17 @@ $$
 
 Substituting these into our vertical motion equation:
 $$
-h = v_z(\frac{d}{v_x}) + \frac{1}{2}g(\frac{d}{v_x})^2 \\
-(\text{substitute in }v_x \text{ and }v_z)\implies h = (v\sin\theta)(\frac{d}{v\cos\theta}) + \frac{1}{2}g(\frac{d}{v\cos\theta})^2
+h = v_z(\frac{d}{v_x}) - \frac{1}{2}g(\frac{d}{v_x})^2 \\
+(\text{substitute in }v_x \text{ and }v_z)\implies h = (v\sin\theta)(\frac{d}{v\cos\theta}) - \frac{1}{2}g(\frac{d}{v\cos\theta})^2
 $$
 
 All we have to do now is simplify and solve for v!
 $$
-h = (v\sin\theta)(\frac{d}{v\cos\theta}) + \frac{1}{2}g(\frac{d}{v\cos\theta})^2 \\
-(\text{distribute})\implies h = \frac{d v\sin\theta}{v\cos\theta} + \frac{1}{2}g(\frac{d^2}{v^2\cos^2\theta}) \\
-(\text{distribute again})\implies h = \frac{d v\sin\theta}{v\cos\theta} + \frac{g d^2}{2v^2\cos^2\theta} \\
-(\text{cancel } v)\implies h = \frac{d \sin\theta}{\cos\theta} + \frac{g d^2}{2v^2\cos^2\theta} \\
-(\text{apply tan}\theta \text{ identity})\implies h = d\tan\theta + \frac{g d^2}{2v^2\cos^2\theta} \\
+h = (v\sin\theta)(\frac{d}{v\cos\theta}) - \frac{1}{2}g(\frac{d}{v\cos\theta})^2 \\
+(\text{distribute})\implies h = \frac{d v\sin\theta}{v\cos\theta} - \frac{1}{2}g(\frac{d^2}{v^2\cos^2\theta}) \\
+(\text{distribute again})\implies h = \frac{d v\sin\theta}{v\cos\theta} - \frac{g d^2}{2v^2\cos^2\theta} \\
+(\text{cancel } v)\implies h = \frac{d \sin\theta}{\cos\theta} - \frac{g d^2}{2v^2\cos^2\theta} \\
+(\text{apply tan}\theta \text{ identity})\implies h = d\tan\theta - \frac{g d^2}{2v^2\cos^2\theta} \\
 (\text{isolate v on one side})\implies \frac{g d^2}{2v^2\cos^2\theta} = d\tan\theta - h \\
 (\text{solve for v})\implies gd^2 = 2v^2\cos^2\theta(d\tan\theta - h) \\
 \frac{gd^2}{d\tan\theta - h} = 2v^2\cos^2\theta \\
@@ -1541,6 +1564,43 @@ Here are some guidelines:
 - The initial pitch of the fuel (the hood angle) should stay at a constant value no matter where you're shooting from
 - Your methods should use both robot and hub positions to calculate yaw/launch speed
 - Detailed field dimensions (like hub position\height) can be found [here](https://firstfrc.blob.core.windows.net/frc2026/FieldAssets/2026-field-dimension-dwgs.pdf)
+
+You will also need to convert launch speed (m/s) to flywheel speed (rad/s). 
+
+To do this during the season, we did the following:
+1. Recorded data on the relationship between angular velocity (flywheel speed), hood pitch, and distance fuel was launched.
+2. Used physics equations (similar to our displacement equation from earlier!) to calculate the fuel's launch speed (linear, not angular) from our data.
+3. Paste the flywheel speed vs. derived launch speed values into desmos and use the graphing calculator to create a model.
+4. Write a function that that takes flywheel speed and outputs launch speed.
+5. Use algebra to rewrite this function to take launch speed and output flywheel speed.
+5. Use this function to write a method that converts launch speed to flywheel speed for use in trajectory calculations.
+
+If you would like to see how we did this or even derive the function yourself, reference [this spreadsheet](https://docs.google.com/spreadsheets/d/1ikj5bX7SY8jNR-cuvEb0MiDeYYPRW5mI0ULnZ-wY4e0/edit?usp=sharing).
+
+You can use the following method in your own flywheel speed calculations:
+
+<details><summary>Open this!</summary>
+
+```java
+// Model coefficients:
+public static final double MODEL_C1 = 18.18081;
+public static final double MODEL_C2 = 9.66252;
+public static final double MODEL_C3 = 1.21679;
+public static final double MODEL_C4 = 0.00849423;
+public static final double MODEL_C5 = -2.4087;
+
+
+/** Estimate the flywheel speed given a launch speed (m/s) and field launch pitch (rad). */
+public static double estimateFlywheelSpeed(double launchSpeed, double launchPitch) {
+    return (Math.log(
+                            (MODEL_C1 + MODEL_C2 * launchPitch) / launchSpeed
+                                    - MODEL_C3 * launchPitch
+                                    - 1)
+                    + MODEL_C5)
+            / -MODEL_C4;
+}
+```
+</details>
 
 #### Putting it Together
 
