@@ -80,6 +80,11 @@ WPILib is the software suite containing all necessary packages and applications 
             - [Aiming The Turret](#aiming-the-turret)
             - [Determining Launch Speed](#determining-launch-speed)
             - [Putting It Together](#putting-it-together)
+        - [Swerve](#swerve)
+            - [Provided Files](#provided-files)
+            - [Initializing Swerve](#initializing-swerve)
+            - [Swerve Configs](#swerve-configs)
+            - [Swerve Controls](#swerve-controls)
 
 - [Temporary End](#temporary-end)
 
@@ -446,7 +451,7 @@ To implement the method body, use the `get()` method of the motor. After writing
 Now we have defined a way to get the motor speed of the spindexer.
 But this information getter is of little use if we can't access it easily while the robot is running.
 
-##### Sendable Properties
+#### Sendable Properties
 A sendable is something we can *send* over NetworkTables (an FRC communication protocol) to the dashboard. The sendable contains multiple properties, which is the actual numerical or text information shown.
 
 Here, our sendable is the `SpindexerSubsystem`, and the property we want to log is the motor speed.
@@ -560,7 +565,7 @@ Apply the following refactoring:
 
 Don't forget to commit, with commit type `refactor: `.
 
-##### Documentation
+#### Documentation
 The core functionality of the spindexer feature is done for now, but there are a few documentation tasks to do.
 
 First, use Javadoc comments to document methods where necessary, specifically your motor methods. (Javadoc comments are started with `/**` (slash, star, star)).
@@ -930,7 +935,7 @@ deployMotor.setControl(new MotionMagicVoltage(angle));
 
 </details>
 
-##### Adding Safety Limits
+#### Adding Safety Limits
 However, this method is currently unsafe because it doesn't have any safety limits or checks. If someone were to set the angle past the subsystem's mechanical limitations, the intake could break itself.
 
 You should always implement software limits that protect the hardware limits, preventing buggy code from physically breaking the robot.
@@ -1622,13 +1627,13 @@ Now that we can get this command more conveniently, let's add it to the robot. W
 
 We want to schedule our automatic aiming command so that it is run every time `robotPeriodic()` is called. Do this using the line `CommandScheduler.getInstance().schedule()` to schedule your targeting command before running all scheduled commands. 
 
-#### Swerve
+### Swerve
 
 Our subsystems our finished, but we've neglected a very important part of our robot; the drivetrain. We want our robot to drive safely and in a way that's intuitive for the driver, which means we'll have to do some extra setup (similar to our subsystem config files).
 
 Note: You will often hear "swerve", "drivetrain", and "swerve drive" used interchangeably during the season. They all refer to the part of our robot that drives it around.
 
-##### Provided Files
+#### Provided Files
 
 To start, let's see what's been provided for you. Take a look through `CommandSwerveDrivetrain.java` in the `drivetrain` folder. You'll see a number of `SysIdRoutine` objects for different types of swerve movement; all you need to know about `SysIdRoutine` is that it helps us determine the relationship between motor voltage and our desired velocity/acceleration. In other words, it collects data makes the swerve run smoother.
 
@@ -1642,7 +1647,7 @@ Also open `TunerConstants.java`. This file stores our swerve motor configuration
 
 Now that we've looked through the files provided for you, let's get started!
 
-##### Initializing Swerve
+#### Initializing Swerve
 
 In `Robot.java`, create a new `CommandSwerveDrivetrain` object to initialize your drivetrain. Hover over the constructor to see its parameters; a `SwerveDrivetrainConstants` object (constants that apply to the entire drivetrain) and multiple `SwerveModuleConstants` objects (constants that apply to speciifc modules of the drivetrain).
 
@@ -1650,7 +1655,7 @@ For our first parameter, we'll pass in the `DrivetrainConstants` field from `Tun
 
 We have a drivetrain now, but there are still some steps to take before it can be used.
 
-##### Swerve Configs
+#### Swerve Configs
 
 Similar to our motors, there are some values we want to save and tune on the drivetrain (aside from the ones in `TunerConstants.java`). Create a new file in the `drivetrain` folder called `DriveConfig.java`.
 
@@ -1670,7 +1675,7 @@ To start, let's set a constant for our *general deadband fraction*. This will st
 
 Now, create two fields to store our linear speed deadband and angular speed deadband. They should both be set to your general deadband fraction multiplied by their respective maximum speeds.
 
-##### Swerve Controls
+#### Swerve Controls
 
 Most of the drivetrain has already been set up for you, except controls. 
 
