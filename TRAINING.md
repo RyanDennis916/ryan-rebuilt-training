@@ -1732,5 +1732,38 @@ See the WPILib [Coordinate System](https://docs.wpilib.org/en/stable/docs/softwa
 
 Once this is set, our drivetrain is ready to drive!
 
-## Temporary End
-The rest of training is being actively written.
+## End?
+
+Congratulations, you've reached the end of the advanced training preprogramming portion… kind of.
+
+You've programmed every subsystem on the robot and the drivetrain, bound commands to controller buttons, and even created an automatic targeting algorithm. But really, this is the *bare minimum*. 
+
+Sure, our robot functions, but that doesn't mean we can't make it better. In any programming project you work on for this team (and in general!) you should always seek to improve what you've written even after it's "done".
+
+With that in mind, the last section of preprogramming will be refactoring exercises. Some are very simple to implement, others require a bit more problem solving. All of these are based on real changes we made to the robot last season.
+
+It's okay to stop preprogramming here, but we *highly, highly* recommend you work through at least a few of the refactoring exercises outlined for you below; they're great practice for the season, where you will be constantly updating the codebase with new features or improvements on old ones.
+
+### Refactoring Exercises
+
+#### Robot Stow
+
+During a match, there could be times when we want to stow all subsystems on the robot (ex. when we're playing aggressive defense and want to make sure the robot components are as protected as possible). It would be a good idea for this action to have its own controller binding.
+
+In `Robot.java`, create a method to stop and stow all subsystems.
+
+We want to bind our new stow method to the controller's start button (using `controller.start()`). When this button is pressed, we want to run our collective stow method using the `Commands.run()` method. We use this instead of `runOnce()` because it will continue to call the stow method until interrupted (one of the subsystems receives another command). Most frequently, stowing will be for longer periods of time and needs more than a one-and-done command. Make sure you pass in each subsystem as a requirement.
+
+We also want to be able to run our stow command while the robot is disabled. This means that we can press the start button while the robot is disabled to schedule the command, and it will be run as soon as the robot is enabled again. This is useful if the robot is currently in an unsafe position and we want to get it back to a safe position (stow) immediately upon enabling. After your `Commands.run()` method, call the `ignoringDisable()` to set the command to run while the robot is enabled.
+
+#### Enable/Disable Methods
+
+When testing, it can be useful to have a "toggle" that enables or disables certain subsystems; if we're testing the feeder, for example, we might not want the rest of the launcher assembly to be running at the same time.
+
+We implemented this in our shooter subsystem, but it would be nice to have an `enabled` property on each subsystem (and a way to update that value from the dashboard). Add that to the other subsystems now.
+
+#### Fixed Shooting
+
+If our automatic targeting is not working or something unexpected happens during a match, we want to have a backup plan short of disabling the entire launcher. This is where fixed shooting comes in, essentially "locking" the hood pitch, turret yaw, and shooter speed to constant values. This leaves it up to the driver to aim with the swerve instead of the turret and adjust to an appropriate distance.
+
+Similar to your automatic targeting command/binding, make it so holding the controller's right bumper activates fixed shooting.
