@@ -84,7 +84,7 @@ WPILib is the software suite containing all necessary packages and applications 
 - [Temporary End](#temporary-end)
 
 ## Attribution
-This file and codebase were written by @spacepotatoes3 and @aatle on GitHub.
+This file and codebase were written by @aatle on GitHub.
 
 *No AI was used to write any parts of this project.*
 
@@ -1621,6 +1621,111 @@ Using both these methods, complete your method to return automatic targeting as 
 Now that we can get this command more conveniently, let's add it to the robot. We won't be adding this to `initBindings()` (it wouldn't be convenient for the driver to be constantly spamming one button). Instead, it will go into the `robotPeriodic()` method where you added the line to run scheduled commands `CommandScheduler.getInstance().run()`.
 
 We want to schedule our automatic aiming command so that it is run every time `robotPeriodic()` is called. Do this using the line `CommandScheduler.getInstance().schedule()` to schedule your targeting command before running all scheduled commands. 
+
+#### Swerve
+
+Our subsystems our finished, but we've neglected a very important part of our robot; the drivetrain. We want our robot to drive safely and in a way that's intuitive for the driver, which means we'll have to do some extra setup (similar to our subsystem config files).
+
+Note: You will often hear "swerve", "drivetrain", and "swerve drive" used interchangeably during the season. They all refer to the part of our robot that drives it around.
+
+##### Provided Files
+
+To start, let's see what's been provided for you. Take a look through `CommandSwerveDrivetrain.java` in the `drivetrain` folder. You'll see a number of `SysIdRoutine` objects for different types of swerve movement; all you need to know about `SysIdRoutine` is that it helps us determine the relationship between motor voltage and our desired velocity/acceleration. In other words, it collects data makes the swerve run smoother.
+
+If you would like to read more about `SysIdRoutine`, see the WPILib [Intro to System Identification](https://docs.wpilib.org/en/stable/docs/software/advanced-controls/system-identification/introduction.html) page.
+
+A few other important things happen in `CommandSwerveDrivetrain.java`:
+- `configureAutoBuilder()` passes on drivetrain info to the `AutoBuilder` class that will allow it to accurately control and read values from our drivetrain during autonomous routines.
+- `addVisionMeasurement()` corrects the robot's position (from odometry) based on where the vision subsystem thinks it is.
+
+Also open `TunerConstants.java`. This file stores our swerve motor configurations, PID values (we'll talk about these later), and any other physical specifications of the drivetrain that will help us control it more accurately.
+
+Now that we've looked through the files provided for you, let's get started!
+
+##### Initializing Swerve
+
+In `Robot.java`, create a new `CommandSwerveDrivetrain` object to initialize your drivetrain. Hover over the constructor to see its parameters; a `SwerveDrivetrainConstants` object (constants that apply to the entire drivetrain) and multiple `SwerveModuleConstants` objects (constants that apply to speciifc modules of the drivetrain).
+
+For our first parameter, we'll pass in the `DrivetrainConstants` field from `TunerConstants.java`. For the modules, we'll use the four `SwerveModuleConstants` values also saved in `TunerConstants.java` (`FrontLeft`, `BackRight`, etc). They should be passed in with the following order: `FrontLeft`, `FrontRight`, `BackLeft`, `BackRight`.
+
+We have a drivetrain now, but there are still some steps to take before it can be used.
+
+##### Swerve Configs
+
+Similar to our motors, there are some values we want to save and tune on the drivetrain (aside from the ones in `TunerConstants.java`). Create a new file in the `drivetrain` folder called `DriveConfig.java`.
+
+First, declare a field called to store your drive controller's port, and call this constant from `Robot.java` instead of using the value directly.
+
+Also create a field to track whether or not driving is enabled, similar to the `enabled` property in `ShooterSubsystem.java`.
+
+We want to store the drivetrain's maximum speeds in this file as well. Create a new field, `maxSpeed`, and initialize it to a value of `3` meters per second.
+
+This is our maximum *linear* speed (for how fast we move around the field), but we should have a separate constant for our maximum *angular* speed (how fast we should rotate the robot). Initialize this to `0.75` rotations per second.
+
+We also want to set a **deadband** value for our swerve drive. A deadband is a specific threshold we set where, if our joystick input is below this threshold, we round the input down to 0 (the drivetrain won't move at all).
+
+This is useful because, in practice, we don't want the drivetrain to react to every tiny movement of the joystick. Without a deadband, our drivetrain would move anytime the joysticks aren't centered at absolute zero - causing unnecessary twitches or rotation when we don't want movement at all. 
+
+To start, let's set a constant for our *general deadband fraction*. This will store the fraction of the drivetrain's maximum speed (linear or angular) that we want it to start registering input at. Setting this fraction to `0.5`, for example, would mean our swerve should only start moving once the joystick input translates to over half of our maximum speed. Generally speaking, this value should range from  `0.05` to `0.1`, or 5-10% of the maximum; we'll set it to `0.1` to start. 
+
+Now, create two fields to store our linear speed deadband and angular speed deadband. They should both be set to your general deadband fraction multiplied by their respective maximum speeds.
+
+##### Swerve Controls
+
+Most of the drivetrain has already been set up for you, except controls. 
+
+Take a look at the `CommandSwerveDrivetrain.java`
+
+In our case, the left joystick will handle moving around the field and the right joystick will handle rotation.
+
+From each joystick, we can retrieve a current x axis value and y axis value. The x axis value corresponds to how far left or right we push the joystick, and the y axis value to how far up or down. Together, they give us the "coordinates" of the joystick's current position.
+
+Because multiple joystick inputs are more complicated to process than a button press, we'll create a separate method in `Robot.java` to handle swerve motion. Our new method will take in the current joystick positions and return a `SwerveRequest` that tells the drivetrain how to move (this will be built off of the `SwerveRequest.FieldCentric` object we made in `DriveConfig.java`. 
+
+Your parameters will be three throttle values (`double`s): `xThrottle`, `yThrottle`, and `rotThrottle`. The x and y throttles indicate how fast we want the swerve to move in either direction. The rotation throttle represents how fast we want to rotate and in what direction.
+
+Before we move anything, check to see if driving is enabled. If not, return a new `SwerveRequest.Idle` object (tells the swerve not to move). 
+
+
+Otherwise, we'll make a new `SwerveRequest` object that will tell the swerve how we want it to move (based on our configs and controller input).
+
+Create and initialize a new `SwerveRequest.FieldCentric` object. The `.FieldCentric` indicates that we want our joystick directions to be set relative to the field, not the robot (ex. pushing the joystick up will move the robot in the +x direction on the field regardless of its rotation). 
+
+After your constructor call, call 3 methods on this object to modify its properties:
+`.withDeadband()`
+`.withRotationalDeadband()`
+`.withDriveRequestType()`
+
+Pass in the deadbands you declared in `DriveConfig.java` for the first two. In `.withDriveRequestType()`, pass `DriveRequestType.Velocity` in as a parameter. We want to control our drive motor by passing in velocity values (as opposed to voltage).
+
+Similar to the `onTrue()` from earlier, each one of these methods return the object being modified, so they can be chained one after the other.
+
+Next, we'll apply the throttle values from the joystick to make the drivetrain move. Call the following methods on your swerve request:
+`.withVelocityX()`
+`.withVelocityY()`
+`.withRotationalRate()`
+
+For each method, your parameter should be equal to the drivetrain's maximum (linear or angular) speed times the correct throttle value. Return this swerve request.
+
+Now we can bind the joystick!
+
+Find your `initBindings()` method from earlier.
+
+Unlike the bumpers or d-pad, the joysticks don't have a method that can be called on the driver controller to return their directional input (there are `controller.leftStick()` and `controller.rightStick()` methods, but those are meant for a joystick press). Instead, we'll use methods like `controller.getLeftX()` (retrieves the x-axis value from the controller's left joystick).
+
+To start, we'll call `drivetrain.setDefaultCommand()`. This will make it so the command passed into the method is scheduled by default (when the subsystem is not busy with something else). It would be a good idea for our drivetrain's default command to be driving.
+
+Next, we'll call `drivetrain.applyRequest()`. This method takes in a `SwerveRequest` and returns it as a `Command` object, which is exactly what we need here.
+
+Lastly, use a lambda expression to pass in your `getSwerveRequest()` method from earlier. Use the controller methods `getLeftX()`, `getLeftY()`, and `getRightX()` to retrieve the correct joystick axis values for the request.
+
+Remember: the joystick coordinate system does not operate the same as the robot's! We will have to make some changes to the values we pass into the swerve request so it doesn't drive in entirely the wrong direction.
+
+Joystick inputs are considered rotations about an axis, not translations. This means that if we push forward on the joystick (in the +X) direction, the joystick will consider it a clockwise (CW) rotation about its y-axis and therefore a negative y value.
+
+See the WPILib [Coordinate System](https://docs.wpilib.org/en/stable/docs/software/basic-programming/coordinate-system.html) page for a diagram and more detailed explanation. There is also a useful example of how these changes affect swerve drivetrain movement.
+
+Once this is set, our drivetrain is ready to drive!
 
 ## Temporary End
 The rest of training is being actively written.
