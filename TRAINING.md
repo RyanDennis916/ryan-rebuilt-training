@@ -1744,6 +1744,8 @@ With that in mind, the last section of preprogramming will be refactoring exerci
 
 It's okay to stop preprogramming here, but we *highly, highly* recommend you work through at least a few of the refactoring exercises outlined for you below; they're great practice for the season, where you will be constantly updating the codebase with new features or improvements on old ones.
 
+Once you've done your refactoring exercises, you are finished with preprogramming and can move on to testing with the physical robot!
+
 ### Refactoring Exercises
 
 #### Robot Stow
@@ -1767,3 +1769,20 @@ We implemented this in our shooter subsystem, but it would be nice to have an `e
 If our automatic targeting is not working or something unexpected happens during a match, we want to have a backup plan short of disabling the entire launcher. This is where fixed shooting comes in, essentially "locking" the hood pitch, turret yaw, and shooter speed to constant values. This leaves it up to the driver to aim with the swerve instead of the turret and adjust to an appropriate distance.
 
 Similar to your automatic targeting command/binding, make it so holding the controller's right bumper activates fixed shooting.
+
+#### Launcher Assembly
+
+Instead of treating the feeder, hood, shooter, and turret subsystems as entirely separate from one another, we can organize them as part of the *launcher assembly* in our codebase.
+
+Create a separate file in the `launcher` folde called `LauncherAssembly.java`. We can initialize our subsytems here instead of in `Robot.java`.
+
+Now that our subsystems are here, we can create convenience methods for the launcher as a whole (referencing multiple subsystems). A few you should consider creating are:
+- A launcher stow method
+- A method to aim the hood and turret together (given yaw and pitch)
+- A method for fixed shooting
+
+Some fields you can add here (or in a separate launcher constants file) are:
+- The launcher `CANBus`
+- The robot to launcher transform
+
+Note that these specific changes are not *required*; you can pick and choose what makes sense to you, or go a competely different route with these exercises.
