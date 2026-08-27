@@ -80,13 +80,21 @@ WPILib is the software suite containing all necessary packages and applications 
             - [Aiming The Turret](#aiming-the-turret)
             - [Determining Launch Speed](#determining-launch-speed)
             - [Putting It Together](#putting-it-together)
-        - [Swerve](#swerve)
-            - [Provided Files](#provided-files)
-            - [Initializing Swerve](#initializing-swerve)
-            - [Swerve Configs](#swerve-configs)
-            - [Swerve Controls](#swerve-controls)
-
-- [Temporary End](#temporary-end)
+    - [Swerve](#swerve)
+        - [Provided Files](#provided-files)
+        - [Initializing Swerve](#initializing-swerve)
+        - [Swerve Configs](#swerve-configs)
+        - [Swerve Controls](#swerve-controls)
+- [End?](#end)
+    - [Refactoring Exercises](#refactoring-exercises)
+        - [Robot Stow](#robot-stow)
+        - [Enable/Disable Methods](#enabledisable-methods)
+        - [Fixed Shooting](#launcher-assembly)
+        - [Launcher Assembly](#launcher-assembly)
+        - [Field Zoning](#field-zoning)
+            - [Trench Stow](#trench-stow)
+        - [Fuel Unjamming](#fuel-unjamming)
+- [End](#end-1)
 
 ## Attribution
 This file and codebase were written by @aatle on GitHub.
@@ -1462,7 +1470,7 @@ In order to simplify our calculations, we will assume the effects of air resista
 
 To solve for launch speed, we'll be looking to relate what we know (vertical and horizontal distances from the launcher to the target) with what we're trying to find (launch speed). The easiest way we can do this is by writing an equation for this relationship, so let's go through how we'll set up the calculations!
 
-It will be much easier to solve for launch speed if we break it up into its horizontal and vertical components, v<sub>x</sub> and v<sub>z</sub>. Think of these components as the legs of a right triangle, with the combined velocity as the hypotenuse; using $\theta\ as our initial launch angle, we can write v<sub>x</sub> and v<sub>z</sub> as:
+It will be much easier to solve for launch speed if we break it up into its horizontal and vertical components, v<sub>x</sub> and v<sub>z</sub>. Think of these components as the legs of a right triangle, with the combined velocity as the hypotenuse; using $\theta$ as our initial launch angle, we can write v<sub>x</sub> and v<sub>z</sub> as:
 $$
 v_x = v\cos\theta \\
 v_z = v\sin\theta
@@ -1685,7 +1693,7 @@ In our case, the left joystick will handle moving around the field and the right
 
 From each joystick, we can retrieve a current x axis value and y axis value. The x axis value corresponds to how far left or right we push the joystick, and the y axis value to how far up or down. Together, they give us the "coordinates" of the joystick's current position.
 
-Because multiple joystick inputs are more complicated to process than a button press, we'll create a separate method in `Robot.java` to handle swerve motion. Our new method will take in the current joystick positions and return a `SwerveRequest` that tells the drivetrain how to move (this will be built off of the `SwerveRequest.FieldCentric` object we made in `DriveConfig.java`. 
+Because multiple joystick inputs are more complicated to process than a button press, we'll create a separate method in `Robot.java` to handle swerve motion. Our new method will take in the current joystick positions and return a `SwerveRequest` that tells the drivetrain how to move (this will be built off of the `SwerveRequest.FieldCentric` object we made in `DriveConfig.java`). 
 
 Your parameters will be three throttle values (`double`s): `xThrottle`, `yThrottle`, and `rotThrottle`. The x and y throttles indicate how fast we want the swerve to move in either direction. The rotation throttle represents how fast we want to rotate and in what direction.
 
@@ -1786,3 +1794,66 @@ Some fields you can add here (or in a separate launcher constants file) are:
 - The robot to launcher transform
 
 Note that these specific changes are not *required*; you can pick and choose what makes sense to you, or go a competely different route with these exercises.
+
+#### Field Zoning
+
+For more advanced targeting and extra features, we want the robot to know what zone of the playing field its in (alliance zone, neutral zone, trench zone, etc). Since we have the robot's pose at its origin and a map of field dimensions, this just comes down to math (yay!)
+
+Create a new folder called `field` in the codebase. To start, let's store the constants we'll need (robot and field related) to perform the relevant calculations.
+
+Picture the playing field as a coordinate plane split into different regions (mostly with vertical lines, or specific x-axis values). If we want to know when the robot is in a specific region, we need to figure out the "threshold" between two different areas of the field.
+
+Let's start by defining where the blue alliance zone, neutral zone, and red alliance zone are.
+
+Consult the the [2026 field dimensions](https://firstfrc.blob.core.windows.net/frc2026/FieldAssets/2026-field-dimension-dwgs.pdf) page and the [2026 game manual](https://firstfrc.blob.core.windows.net/frc2026/Manual/2026GameManual.pdf) (Section 5.3: Areas, Zones, and Markings) to find these values and store them as constants. We will also want to save the length and width of the entire field.
+
+According to FIRST, a robot is considered within an alliance zone if any part of it (including bumpers!) is within that zone. This means we can't just consider the robot's pose, which gives its center; we have to take its length into account as well.
+
+Create another constant to store the robot's full length, including bumpers. The drivebase is 27in long, and each bumper side is 4.75in thick. Save this constant in a way that the drivebase/bumper thickness can be modified easily, should they change later.
+
+Also create a constant to store *half* the full robot length, used when measuring from the robot's origin to the end of the bumper. We will have to add this value to our robot pose to determine what zone it's in.
+
+<details><summary> Bonus Challenge </summary>
+.
+
+If our robot never rotated, determining which zone it's in would be as simple as combining the current pose with the halved robot length to determine whether the bumpers cross certain thresholds. Unfortunately for us, our robot will almost always have a nonzero rotation.
+
+The challenge here is to find a mathematical expression that relates the robot's rotation to how far the maximum bumper extension will be along each axis. Unlike our trajectory math, you won't be given an explicit framework for this. Have fun!
+
+Once you've found an expression, use it to create a method that takes in robot rotation and returns how far the robot's bumpers extend (relative to the coordinate axes) from its origin.
+
+Using this general method, create mutliple methods that retrieve the robot's minimum and maximum extensions in both the x and y direction. These are the updated methods we'll use to determine what zone it's in.
+</details>
+.
+
+Now we can create methods to determine if the robot is in each alliance zone. Create 3 methods (for blue alliance zone, red alliance zone, and neutral zone respectively) that will evaluate if the robot is in the given zone and return a corresponding boolean value.
+
+Note: If the robot is not in the blue alliance zone or the red alliance zone, it is considered to be in the neutral zone.
+
+Using these methods, let's add one more that evaluates if the robot is in its own alliance zone (to determine whether or not to shoot into the hub). Use the `DriverStation.getAlliance()` method.
+
+##### Trench Stow
+
+Something additional we can implement with field zoning is putting the launcher in stow automatically when it moves under the trench (to prevent damange due to driver error).
+
+To start, let's set a threshold for how close to the trench we think the robot should automatically move into stow. Since it takes time to get into the stow position and our robot could be moving at high speeds during the match, this should be as generous a threshold as we can give (without interfering with our ability to shoot).
+
+We also only want to stow if the robot is near the trench opening (not, for example, up against the hub.) 
+
+With this in mind, create a method that returns whether or not the robot is near the trench (in front of the opening and within our threshold).
+
+In `Robot.java`, periodically check if the robot is close to the trench. If it is, schedule a command that stows the launcher. Right after you declare the command (ideally with `Commands.runOnce()`), add a call to the `.withInterruptBehavior()` method. We will use this additional property if we have an "urgent" command that needs to be run immediately. Pass in `InterruptionBehavior.kCancelIncoming` as your parameter, which allows this command to cancel other commands currently using its subsystem requirements so it can be run.
+
+#### Fuel Unjamming
+
+During a match, fuel may get jammed in the intake or feeder and prevent us from shooting. Since we can't run onto the field and pull fuel out mid-match, we'll have to program a way for the robot to unjam itself for both problem spots; intake and feeder.
+
+In `Robot.java`, create a method to return a command that tries to unjam intake. Your command should move the intake up to stowed position and run the rollers in reverse to (hopefully) eject the jammed fuel.
+
+Also create a method to unjam the feeder. This should return a command that runs the feeder and spindexer in reverse (and stops both when the command is finished).
+
+## End
+
+Congrats, this is the real end :D
+
+Go test your robot now!
